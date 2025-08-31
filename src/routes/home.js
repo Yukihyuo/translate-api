@@ -111,36 +111,38 @@ api.get('/statistics', async (req, res) => {
 });
 
 api.post('/translate', async (req, res) => {
-  // 1. Obtiene el texto del cuerpo de la solicitud (req.body)
   const textToTranslate = req.body.text;
 
-  // Si no se proporcionó texto, devuelve un error 400
   if (!textToTranslate) {
     return res.status(400).json({ error: 'El cuerpo de la solicitud debe contener un campo "text".' });
   }
 
   try {
-    // 2. Realiza las traducciones de manera asíncrona
     const translatedTextGoogle = await translate(textToTranslate, { from: 'en', to: 'es' });
-    
-    // Si quisieras una segunda traducción con otro motor, podrías hacer esto:
-    // const translatedTextLibre = await libreTranslate(textToTranslate, { from: 'en', to: 'es' });
 
-    // 3. Construye el objeto de respuesta
+    const replacements = {
+      "[P]": "[p]",
+      "[R]": "[r]",
+      "[P_]": "[p_]"
+    };
+
+    const regex = new RegExp(Object.keys(replacements).join('|'), 'gi');
+
+    const processedText = translatedTextGoogle.replace(regex, (matched) => {
+      return replacements[matched.toUpperCase()];
+    });
+
     const responseBody = {
       originalText: textToTranslate,
       translations: {
-        google: translatedTextGoogle.replace("[P]","[p]").replace("[R]","[r]"),
-        // libreTranslate: translatedTextLibre // Si la incluyeras
+        google: processedText,
       }
     };
 
-    // 4. Envía la respuesta en formato JSON
     res.json(responseBody);
 
   } catch (error) {
     console.error('Error al traducir el texto:', error);
-    // En caso de error, devuelve una respuesta con estado 500 (Error interno del servidor)
     res.status(500).json({ error: 'Hubo un problema al realizar la traducción.', details: error.message });
   }
 });
