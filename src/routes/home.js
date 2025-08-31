@@ -120,15 +120,26 @@ api.post('/translate', async (req, res) => {
   try {
     const translatedTextGoogle = await translate(textToTranslate, { from: 'en', to: 'es' });
 
-    const replacements = {
-      "[P]": "[p]",
-      "[R]": "[r]",
-      "[P_]": "[p_]"
+    // Función auxiliar para escapar caracteres especiales de la regex
+    const escapeRegExp = (string) => {
+      // Reemplaza caracteres especiales como [, ], (, ), ., etc., con una barra invertida delante
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     };
 
-    const regex = new RegExp(Object.keys(replacements).join('|'), 'gi');
+    const replacements = {
+      "[P]": "[p]",
+      "[P_]": "[p_]",
+      "[R]": "[r]",
+      "[LR_]": "[lr_]",
+    };
 
+    // Escapamos cada clave antes de unirlas para que la regex funcione
+    const escapedKeys = Object.keys(replacements).map(key => escapeRegExp(key));
+    const regex = new RegExp(escapedKeys.join('|'), 'gi');
+
+    // Usamos .replace() con una función de callback para aplicar el reemplazo
     const processedText = translatedTextGoogle.replace(regex, (matched) => {
+      // El callback recibe la coincidencia exacta. Usamos .toUpperCase() para que coincida con la clave del objeto, sin importar las mayúsculas/minúsculas del texto original.
       return replacements[matched.toUpperCase()];
     });
 
@@ -145,6 +156,27 @@ api.post('/translate', async (req, res) => {
     console.error('Error al traducir el texto:', error);
     res.status(500).json({ error: 'Hubo un problema al realizar la traducción.', details: error.message });
   }
+});
+
+api.get('/downloadTranslate', async (req, res) => {
+  const fileContent = await fs.readFile(DIALOGS_JSON_PATH, 'utf-8');
+  const file = JSON.parse(fileContent);
+
+  file.text = await Dialog.find().select("key en-US -_id")
+
+  const jsonData = JSON.stringify(file, null, 2); // El 'null, 2' formatea el JSON para que sea legible
+
+  // 2. Establecer las cabeceras de la respuesta HTTP
+  // La cabecera Content-Type le dice al navegador que el contenido es un JSON
+  res.setHeader('Content-Type', 'application/json');
+
+  // La cabecera Content-Disposition le dice al navegador que descargue el archivo.
+  // El valor "attachment" fuerza la descarga, y "filename" le da un nombre.
+  res.setHeader('Content-Disposition', 'attachment; filename="collection-data.json"');
+
+  // 3. Enviar los datos al cliente
+  // res.send() envía la cadena JSON como cuerpo de la respuesta
+  res.send(jsonData);
 });
 
 
