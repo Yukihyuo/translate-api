@@ -6,7 +6,9 @@ const app = express();
 const port = 3010;
 
 app.use(express.json());
-app.use(cors())
+app.use(cors({
+  origin: "*",
+}))
 app.use("/api", home)
 
 app.get("/", (req, res) => {
